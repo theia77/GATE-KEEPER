@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createRouteClient } from "@/lib/supabase/server";
+import { createApiClient } from "@/lib/supabase/server";
 
 const startAttemptSchema = z.object({
   mock_id: z.string().uuid(),
@@ -16,7 +16,7 @@ const startAttemptSchema = z.object({
  * is duplicated here.
  */
 export async function POST(request: Request) {
-  const supabase = createRouteClient();
+  const supabase = createApiClient(request);
   const {
     data: { user },
   } = await supabase.auth.getUser();

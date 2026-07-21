@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { createRouteClient } from "@/lib/supabase/server";
+import { createApiClient } from "@/lib/supabase/server";
 
 /** GET /api/mocks?type=standard|sectional|custom — list published mocks (RLS-scoped). */
 export async function GET(request: Request) {
-  const supabase = createRouteClient();
+  const supabase = createApiClient(request);
   const { searchParams } = new URL(request.url);
   const mockType = searchParams.get("type");
 

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { createRouteClient } from "@/lib/supabase/server";
+import { createApiClient } from "@/lib/supabase/server";
 
 /** POST /api/notes/:id/vote — upvote. RLS blocks voting on your own note (Phase 1 policy). */
-export async function POST(_request: Request, { params }: { params: { id: string } }) {
-  const supabase = createRouteClient();
+export async function POST(request: Request, { params }: { params: { id: string } }) {
+  const supabase = createApiClient(request);
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -19,8 +19,8 @@ export async function POST(_request: Request, { params }: { params: { id: string
 }
 
 /** DELETE /api/notes/:id/vote — remove your upvote. */
-export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
-  const supabase = createRouteClient();
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  const supabase = createApiClient(request);
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { customMockUploadSchema, type UploadedQuestion } from "@gate-force/shared";
-import { createRouteClient } from "@/lib/supabase/server";
+import { createApiClient } from "@/lib/supabase/server";
 import { parseCsv } from "@/lib/parseCsv";
 
 /**
@@ -13,7 +13,7 @@ import { parseCsv } from "@/lib/parseCsv";
  * own folder (see docs/api-routes.md for the bucket/path layout).
  */
 export async function POST(request: Request) {
-  const supabase = createRouteClient();
+  const supabase = createApiClient(request);
   const {
     data: { user },
   } = await supabase.auth.getUser();

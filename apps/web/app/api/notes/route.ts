@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { noteUploadSchema } from "@gate-force/shared";
-import { createRouteClient } from "@/lib/supabase/server";
+import { createApiClient } from "@/lib/supabase/server";
 
 /** GET /api/notes?visibility=public|private — RLS already scopes private notes to the owner. */
 export async function GET(request: Request) {
-  const supabase = createRouteClient();
+  const supabase = createApiClient(request);
   const { searchParams } = new URL(request.url);
   const visibility = searchParams.get("visibility") ?? "public";
 
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
  * Upload PDF / Scan with Camera" options in the Upload Panel design.
  */
 export async function POST(request: Request) {
-  const supabase = createRouteClient();
+  const supabase = createApiClient(request);
   const {
     data: { user },
   } = await supabase.auth.getUser();

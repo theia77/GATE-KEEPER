@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createRouteClient } from "@/lib/supabase/server";
+import { createApiClient } from "@/lib/supabase/server";
 
 /**
  * POST /api/attempts/:id/submit
@@ -7,8 +7,8 @@ import { createRouteClient } from "@/lib/supabase/server";
  * XP, streak, and penalty-lock logic lives there. This route exists only so web/mobile
  * have a stable REST surface; it does not duplicate any of that logic.
  */
-export async function POST(_request: Request, { params }: { params: { id: string } }) {
-  const supabase = createRouteClient();
+export async function POST(request: Request, { params }: { params: { id: string } }) {
+  const supabase = createApiClient(request);
   const {
     data: { user },
   } = await supabase.auth.getUser();
