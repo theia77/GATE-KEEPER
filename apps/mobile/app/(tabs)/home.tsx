@@ -6,6 +6,9 @@ import { Card, ProgressBar, SectionLabel, StatTile, PrimaryButton } from "@/comp
 import { colors, fonts } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
+import { useRealtimeProgress } from "@/lib/useRealtimeProgress";
+import { countQueuedMutations } from "@/lib/db";
+import { flushQueue } from "@/lib/offlineQueue";
 import { RANK_THRESHOLDS, DAILY_DRILL_QUESTION_COUNT } from "@gate-force/shared";
 
 type Progress = {
@@ -21,17 +24,28 @@ export default function HomeScreen() {
   const { session } = useAuth();
   const router = useRouter();
   const [progress, setProgress] = useState<Progress | null>(null);
+  const [pendingSync, setPendingSync] = useState(0);
+
+  const refetchProgress = useCallback(() => {
+    if (!session) return;
+    supabase
+      .from("user_progress")
+      .select("xp_total, rank_name, current_streak, locked, questions_solved, accuracy_pct")
+      .eq("user_id", session.user.id)
+      .single()
+      .then(({ data }) => setProgress(data));
+  }, [session]);
+
+  // Cross-device sync: if a drill/mock was submitted from the web app (or another
+  // device), this fires and the Home screen updates without the user pulling to
+  // refresh — same Realtime channel/table as apps/web/components/RealtimeProgressListener.
+  useRealtimeProgress(session?.user.id, refetchProgress);
 
   useFocusEffect(
     useCallback(() => {
-      if (!session) return;
-      supabase
-        .from("user_progress")
-        .select("xp_total, rank_name, current_streak, locked, questions_solved, accuracy_pct")
-        .eq("user_id", session.user.id)
-        .single()
-        .then(({ data }) => setProgress(data));
-    }, [session])
+      refetchProgress();
+      countQueuedMutations().then(setPendingSync);
+    }, [refetchProgress])
   );
 
   const xp = progress?.xp_total ?? 0;
@@ -46,6 +60,22 @@ export default function HomeScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.eyebrow}>GATE FORCE · DA 2027</Text>
       <Text style={styles.headline}>DAY {streak}.{"\n"}STAY DISCIPLINED.</Text>
+
+      {pendingSync > 0 && (
+        <Pressable
+          onPress={() =>
+            flushQueue().then(({ remaining }) => {
+              setPendingSync(remaining);
+              refetchProgress();
+            })
+          }
+          style={styles.syncBanner}
+        >
+          <Text style={styles.syncBannerText}>
+            {pendingSync} {pendingSync === 1 ? "action" : "actions"} queued offline — tap to sync now
+          </Text>
+        </Pressable>
+      )}
 
       {progress?.locked && (
         <Pressable onPress={() => router.push("/(tabs)/arena")} style={styles.penaltyBanner}>
@@ -95,6 +125,8 @@ const styles = StyleSheet.create({
   content: { padding: 20, gap: 18, paddingBottom: 40 },
   eyebrow: { fontFamily: fonts.display, fontSize: 13, letterSpacing: 2, color: colors.textSecondary, textTransform: "uppercase" },
   headline: { fontFamily: fonts.displayExtraBold, fontSize: 30, lineHeight: 32, color: colors.textPrimary },
+  syncBanner: { backgroundColor: "rgba(255,176,32,0.12)", borderColor: "rgba(255,176,32,0.4)", borderWidth: 1, borderRadius: 14, padding: 12 },
+  syncBannerText: { fontSize: 12, color: colors.accentGold },
   penaltyBanner: { backgroundColor: "rgba(255,59,48,0.12)", borderColor: "rgba(255,59,48,0.4)", borderWidth: 1, borderRadius: 14, padding: 14, gap: 4 },
   penaltyTitle: { fontFamily: fonts.display, fontSize: 13, color: "#ff6259" },
   penaltyBody: { fontSize: 12.5, color: "#d8c9c4", lineHeight: 18 },

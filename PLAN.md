@@ -30,7 +30,7 @@ success `#7cd992`, headings in Barlow Condensed 700/800, body in Inter).
 - [x] **Phase 3** — Backend/API: Supabase RPC + Next.js route handlers for drills, mocks, uploads, notes/voting; Storage bucket layout + signed URL strategy.
 - [x] **Phase 4** — Web App (Next.js): sidebar layout, Home/Quests/Arena/Vault/Profile pages, hardcore-academy visual system.
 - [x] **Phase 5** — Mobile App (Expo): bottom-tab nav (Home/Quests/Arena/Vault/Profile) matching handoff design pixel-for-pixel, Upload Panel (document/image picker), push notifications for Streak Alert.
-- [ ] **Phase 6** — Sync & Offline: Realtime subscriptions, SQLite mutation queue, server-authoritative conflict resolution for streak/penalty state.
+- [x] **Phase 6** — Sync & Offline: Realtime subscriptions, SQLite mutation queue, server-authoritative conflict resolution for streak/penalty state.
 
 ## Project Layout
 ```
@@ -172,5 +172,42 @@ platforms.
   (meant to be scheduled ~21:00 UTC via the dashboard's Edge Function cron or
   pg_cron + pg_net, since plain SQL can't reach an external HTTP API).
 
-Next: Phase 6 (sync & offline — Realtime subscriptions, `expo-sqlite` mutation queue,
-server-authoritative conflict resolution for streak/penalty state).
+Phase 6 done — the final phase. `tsc --noEmit` passes clean for both `apps/web` and
+`apps/mobile`; the web production build still compiles all 19 routes.
+
+- **Realtime sync**: migration `20260104000001_realtime_publication.sql` adds
+  `user_progress`, `penalty_drills`, and `notes` to the `supabase_realtime`
+  publication. `apps/web/components/RealtimeProgressListener.tsx` (wired into
+  `(app)/layout.tsx`) and `apps/mobile/lib/useRealtimeProgress.ts` (wired into the
+  mobile Home screen) both subscribe to the signed-in user's own `user_progress` row —
+  RLS applies to the Realtime feed exactly as it does to normal queries — and refetch
+  on `UPDATE`. Completing a drill on mobile now updates an already-open web tab's
+  Streak Armor card (and vice versa) without a manual reload.
+- **Offline architecture**: `apps/mobile/lib/db.ts` — an `expo-sqlite` `mutation_queue`
+  table (FIFO, `kind` in `answer`/`submit`). `AttemptRunner` (mobile) now enqueues
+  instead of silently dropping a failed autosave or submit, and shows an explicit
+  "Queued — no signal" result state rather than fabricating a score. `lib/offlineQueue.ts`
+  replays the queue in insertion order, stopping on the first failure so ordering is
+  never violated; `app/_layout.tsx` flushes on mount, on every app-foreground
+  (`AppState`), and on a 30s heartbeat while active. The Home screen shows a queued-count
+  banner with a manual "sync now" tap.
+- **Conflict resolution rule** (documented in `lib/offlineQueue.ts`): fully
+  server-authoritative, always. A replayed mutation is just the same request the device
+  would have sent live — the server's `submit_attempt` RPC grades it and decides
+  XP/streak/lock using its own clock and its own copy of the correct answers, never
+  anything computed on-device. One explicit consequence: a Daily Drill completed
+  offline is credited to the calendar day it *syncs* on, not the day it was completed
+  on-device — deliberate, not a bug, since allowing a backdated date would let a user
+  queue "yesterday's" drill forever and never actually lose a streak, defeating the
+  entire mechanic.
+
+## Summary
+All 6 phases complete. Every "hardcore mechanic" (Streak Armor, Penalty Drill lock,
+XP/Rank) is real Postgres logic enforced server-side — never client-only, never
+forgeable via direct RPC calls. Web (Next.js) and mobile (Expo) are two real,
+typechecked, building apps sharing one Supabase project, one auth session model, one
+API contract, and one `packages/shared` types/constants package. What's *not* done:
+this was built and typechecked without a live Supabase project (no credentials in this
+environment) or a device/simulator run — see each phase's PR test-plan checkboxes for
+what still needs manual verification once a real project exists, and `app.json` needs
+real icon/splash assets before an EAS build.

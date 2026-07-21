@@ -4,22 +4,31 @@ import { useRouter } from "expo-router";
 import { Card, PrimaryButton } from "@/components/ui";
 import { colors, fonts } from "@/lib/theme";
 import { apiFetch, apiFetchJson } from "@/lib/api";
+import { enqueueMutation } from "@/lib/db";
+import { flushQueue } from "@/lib/offlineQueue";
 
 type Question = { id: string; prompt: string; options: { key: string; text: string }[]; marks: number };
 type SubmitResult = { percentage: number; xp_awarded: number; penalty_triggered: boolean; penalty_cleared: boolean };
 
-/** Mirrors apps/web/components/AttemptRunner.tsx — same API contract, RN presentation. */
+/**
+ * Mirrors apps/web/components/AttemptRunner.tsx — same API contract, RN presentation,
+ * plus offline handling (Phase 6): a failed autosave or submit queues into SQLite
+ * (lib/db.ts) instead of silently dropping, and replays in order once connectivity
+ * returns (lib/offlineQueue.ts). See that file for the streak conflict-resolution rule.
+ */
 export function AttemptRunner({ attemptId, questions }: { attemptId: string; questions: Question[] }) {
   const router = useRouter();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<SubmitResult | null>(null);
+  const [queued, setQueued] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const selectOption = (questionId: string, optionKey: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: optionKey }));
-    apiFetchJson(`/api/attempts/${attemptId}/answer`, "PATCH", { question_id: questionId, selected_option: optionKey }).catch(() => {
-      // offline queueing lands in Phase 6; a failed autosave here is retried on submit
+    const payload = { question_id: questionId, selected_option: optionKey };
+    apiFetchJson(`/api/attempts/${attemptId}/answer`, "PATCH", payload).catch(() => {
+      enqueueMutation("answer", attemptId, payload);
     });
   };
 
@@ -29,11 +38,29 @@ export function AttemptRunner({ attemptId, questions }: { attemptId: string; que
     try {
       const body = await apiFetch(`/api/attempts/${attemptId}/submit`, { method: "POST" });
       setResult(body.result);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to submit");
+    } catch {
+      // Offline (or the server is briefly unreachable): queue the submit itself so the
+      // drill/mock still "completes" from the user's perspective. The real score/XP/
+      // streak outcome only exists once submit_attempt actually runs server-side —
+      // there is nothing to show here but "queued," by design.
+      await enqueueMutation("submit", attemptId, {});
+      setQueued(true);
+      flushQueue().catch(() => {});
     }
     setSubmitting(false);
   };
+
+  if (queued) {
+    return (
+      <Card style={{ alignItems: "center", gap: 12, paddingVertical: 40 }}>
+        <Text style={styles.resultXp}>Queued — no signal right now.</Text>
+        <Text style={styles.resultDanger}>Your answers are saved locally and will sync (grading, XP, streak) the moment you're back online.</Text>
+        <Pressable onPress={() => router.replace("/(tabs)/home")}>
+          <Text style={styles.backLink}>Back to Home</Text>
+        </Pressable>
+      </Card>
+    );
+  }
 
   if (result) {
     return (
