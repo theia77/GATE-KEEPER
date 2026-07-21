@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createServerComponentClient } from "@/lib/supabase/server";
 import { Card, ProgressBar } from "@/components/ui";
 
@@ -13,7 +14,7 @@ export default async function QuestsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: subjects } = await supabase.from("subjects").select("id, name, category").order("sort_order");
+  const { data: subjects } = await supabase.from("subjects").select("id, code, name, category").order("sort_order");
 
   const { data: answered } = await supabase
     .from("attempt_answers")
@@ -44,16 +45,18 @@ export default async function QuestsPage() {
           const mastery = stats && stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
           const color = masteryColor(mastery);
           return (
-            <Card key={subject.id} className="flex flex-col gap-2.5">
-              <div className="flex items-center justify-between gap-3">
-                <div className="font-display font-semibold text-base text-ink">{subject.name}</div>
-                <div className="font-display font-bold text-sm shrink-0" style={{ color }}>
-                  {mastery}%
+            <Link key={subject.id} href={`/quests/${subject.code}`}>
+              <Card className="flex flex-col gap-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="font-display font-semibold text-base text-ink">{subject.name}</div>
+                  <div className="font-display font-bold text-sm shrink-0" style={{ color }}>
+                    {mastery}%
+                  </div>
                 </div>
-              </div>
-              <ProgressBar percent={mastery} color={color} />
-              <div className="text-xs text-inkFaint">{stats?.total ?? 0} questions attempted</div>
-            </Card>
+                <ProgressBar percent={mastery} color={color} />
+                <div className="text-xs text-inkFaint">{stats?.total ?? 0} questions attempted · tap to browse chapters</div>
+              </Card>
+            </Link>
           );
         })}
       </div>

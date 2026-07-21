@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
   const { data: mockQuestions, error: mqError } = await supabase
     .from("mock_questions")
-    .select("question_id, questions(id, subject_id, prompt, options, marks)")
+    .select("question_id, questions(id, subject_id, prompt, options, marks, question_type)")
     .eq("mock_id", mock_id)
     .order("order_index");
 
