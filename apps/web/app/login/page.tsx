@@ -1,90 +1,12 @@
-"use client";
+import { LoginForm } from "./LoginForm";
 
-import { useState, FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+// Force dynamic rendering (only valid in a Server Component page — a "use client"
+// page silently ignores this export). LoginForm instantiates the Supabase browser
+// client at render time, which throws if NEXT_PUBLIC_SUPABASE_URL/ANON_KEY aren't
+// set; without opting out of static generation, a missing/misconfigured env var
+// fails the entire deployment build instead of just this one route.
+export const dynamic = "force-dynamic";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const supabase = createBrowserSupabaseClient();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    const form = new FormData(e.currentTarget);
-    const email = String(form.get("email"));
-    const password = String(form.get("password"));
-    const username = String(form.get("username") ?? "");
-
-    const { error: authError } =
-      mode === "signin"
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password, options: { data: { username } } });
-
-    setSubmitting(false);
-    if (authError) {
-      setError(authError.message);
-      return;
-    }
-    router.push("/home");
-    router.refresh();
-  };
-
-  return (
-    <main className="min-h-screen bg-bg flex items-center justify-center px-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm flex flex-col gap-4">
-        <div className="text-center mb-2">
-          <div className="font-display font-extrabold text-2xl tracking-wide text-ink">GATE FORCE</div>
-          <div className="font-display font-semibold text-xs tracking-widest text-inkGhost uppercase mt-1">
-            DA 2027 · Discipline Rewarded
-          </div>
-        </div>
-
-        {mode === "signup" && (
-          <input
-            name="username"
-            placeholder="Username"
-            required
-            className="bg-card border border-hairline rounded-lg px-3 py-2.5 text-ink"
-          />
-        )}
-        <input
-          name="email"
-          type="email"
-          placeholder="Email"
-          required
-          className="bg-card border border-hairline rounded-lg px-3 py-2.5 text-ink"
-        />
-        <input
-          name="password"
-          type="password"
-          placeholder="Password"
-          required
-          minLength={6}
-          className="bg-card border border-hairline rounded-lg px-3 py-2.5 text-ink"
-        />
-
-        {error && <div className="text-sm text-danger">{error}</div>}
-
-        <button
-          type="submit"
-          className="bg-accent text-accentInk font-display font-extrabold rounded-lg py-3 hover:brightness-110 transition"
-        >
-          {submitting ? "…" : mode === "signin" ? "ENTER THE FORCE" : "ENLIST"}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          className="text-xs text-inkFaint hover:text-inkMuted"
-        >
-          {mode === "signin" ? "New recruit? Create an account" : "Already enlisted? Sign in"}
-        </button>
-      </form>
-    </main>
-  );
+  return <LoginForm />;
 }
