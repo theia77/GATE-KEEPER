@@ -186,26 +186,49 @@ export interface PushToken {
   created_at: ISODateTime;
 }
 
+/** Matches the shape @supabase/postgrest-js (v1, bundled with supabase-js 2.45.x) expects per table. */
+type Table<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
+  Row: Row;
+  Insert: Insert;
+  Update: Update;
+};
+
 export interface Database {
   public: {
     Tables: {
-      profiles: { Row: Profile; Insert: Partial<Profile>; Update: Partial<Profile> };
-      subjects: { Row: Subject; Insert: Partial<Subject>; Update: Partial<Subject> };
-      questions: { Row: Question; Insert: Partial<Question>; Update: Partial<Question> };
-      mocks: { Row: Mock; Insert: Partial<Mock>; Update: Partial<Mock> };
-      mock_questions: { Row: { mock_id: UUID; question_id: UUID; order_index: number; marks_override: number | null }; Insert: any; Update: any };
-      user_uploaded_mocks: { Row: UserUploadedMock; Insert: Partial<UserUploadedMock>; Update: Partial<UserUploadedMock> };
-      attempts: { Row: Attempt; Insert: Partial<Attempt>; Update: Partial<Attempt> };
-      attempt_answers: { Row: AttemptAnswer; Insert: Partial<AttemptAnswer>; Update: Partial<AttemptAnswer> };
-      mock_results: { Row: MockResult; Insert: Partial<MockResult>; Update: Partial<MockResult> };
-      rank_thresholds: { Row: RankThreshold; Insert: Partial<RankThreshold>; Update: Partial<RankThreshold> };
-      user_progress: { Row: UserProgress; Insert: Partial<UserProgress>; Update: Partial<UserProgress> };
-      streak_log: { Row: StreakLogEntry; Insert: Partial<StreakLogEntry>; Update: Partial<StreakLogEntry> };
-      xp_transactions: { Row: XpTransaction; Insert: Partial<XpTransaction>; Update: Partial<XpTransaction> };
-      penalty_drills: { Row: PenaltyDrill; Insert: Partial<PenaltyDrill>; Update: Partial<PenaltyDrill> };
-      notes: { Row: Note; Insert: Partial<Note>; Update: Partial<Note> };
-      note_votes: { Row: NoteVote; Insert: Partial<NoteVote>; Update: Partial<NoteVote> };
-      push_tokens: { Row: PushToken; Insert: Partial<PushToken>; Update: Partial<PushToken> };
+      profiles: Table<Profile>;
+      subjects: Table<Subject>;
+      questions: Table<Question>;
+      mocks: Table<Mock>;
+      mock_questions: Table<{ mock_id: UUID; question_id: UUID; order_index: number; marks_override: number | null }>;
+      user_uploaded_mocks: Table<UserUploadedMock>;
+      attempts: Table<Attempt>;
+      attempt_answers: Table<AttemptAnswer>;
+      mock_results: Table<MockResult>;
+      rank_thresholds: Table<RankThreshold>;
+      user_progress: Table<UserProgress>;
+      streak_log: Table<StreakLogEntry>;
+      xp_transactions: Table<XpTransaction>;
+      penalty_drills: Table<PenaltyDrill>;
+      notes: Table<Note>;
+      note_votes: Table<NoteVote>;
+      push_tokens: Table<PushToken>;
     };
+    Views: Record<string, never>;
+    Functions: {
+      submit_attempt: {
+        Args: { p_attempt_id: UUID };
+        Returns: {
+          attempt_id: UUID;
+          total_marks: number;
+          obtained_marks: number;
+          percentage: number;
+          xp_awarded: number;
+          penalty_triggered: boolean;
+          penalty_cleared: boolean;
+        };
+      };
+    };
+    Enums: Record<string, never>;
   };
 }

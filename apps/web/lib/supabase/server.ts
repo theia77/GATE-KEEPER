@@ -11,9 +11,29 @@ export function createRouteClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get: (name) => cookieStore.get(name)?.value,
-        set: (name, value, options) => cookieStore.set({ name, value, ...options }),
-        remove: (name, options) => cookieStore.set({ name, value: "", ...options }),
+        getAll: () => cookieStore.getAll(),
+        setAll: (cookiesToSet) => {
+          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+        },
+      },
+    }
+  );
+}
+
+/**
+ * Read-only variant for Server Components (layouts/pages). Next.js forbids writing
+ * cookies outside Server Actions/Route Handlers, so `setAll` here is a no-op — session
+ * refresh still happens in middleware and in the route handlers that do allow writes.
+ */
+export function createServerComponentClient() {
+  const cookieStore = cookies();
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll: () => {},
       },
     }
   );
