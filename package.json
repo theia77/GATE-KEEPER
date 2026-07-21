@@ -17,5 +17,10 @@
   "devDependencies": {
     "turbo": "^2.0.6",
     "typescript": "^5.4.5"
+  },
+  "pnpm": {
+    "overrides": {
+      "@supabase/supabase-js": "2.45.4"
+    }
   }
 }
