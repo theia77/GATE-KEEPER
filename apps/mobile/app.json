@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "GATE FORCE",
+    "slug": "gate-force",
+    "scheme": "gateforce",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0b0a09",
+    "ios": {
+      "bundleIdentifier": "com.gateforce.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "GATE FORCE uses the camera to scan handwritten notes into the Vault.",
+        "NSPhotoLibraryUsageDescription": "GATE FORCE needs photo library access to attach scanned notes."
+      }
+    },
+    "android": {
+      "package": "com.gateforce.app",
+      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "color": "#ff5b2e"
+        }
+      ]
+    ],
+    "extra": {
+      "router": { "origin": false }
+    }
+  }
+}

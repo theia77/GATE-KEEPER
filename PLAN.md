@@ -29,7 +29,7 @@ success `#7cd992`, headings in Barlow Condensed 700/800, body in Inter).
 - [x] **Phase 2** — Rigorous Logic: Streak Armor trigger/function, Penalty Drill lock trigger, XP/Rank function — all in Postgres, server-authoritative.
 - [x] **Phase 3** — Backend/API: Supabase RPC + Next.js route handlers for drills, mocks, uploads, notes/voting; Storage bucket layout + signed URL strategy.
 - [x] **Phase 4** — Web App (Next.js): sidebar layout, Home/Quests/Arena/Vault/Profile pages, hardcore-academy visual system.
-- [ ] **Phase 5** — Mobile App (Expo): bottom-tab nav (Home/Quests/Arena/Vault/Profile) matching handoff design pixel-for-pixel, Upload Panel (document/image picker), push notifications for Streak Alert.
+- [x] **Phase 5** — Mobile App (Expo): bottom-tab nav (Home/Quests/Arena/Vault/Profile) matching handoff design pixel-for-pixel, Upload Panel (document/image picker), push notifications for Streak Alert.
 - [ ] **Phase 6** — Sync & Offline: Realtime subscriptions, SQLite mutation queue, server-authoritative conflict resolution for streak/penalty state.
 
 ## Project Layout
@@ -144,6 +144,33 @@ mobile mockup's bottom-tab layout to a left sidebar per the brief.
   chasing the new generic shape by hand; regenerating real types via
   `supabase gen types typescript` later removes this constraint entirely.
 
-Next: Phase 5 (Expo mobile app — bottom tab nav matching the design handoff, Upload
-Panel via `expo-document-picker`/`expo-image-picker`, push notifications for the
-Streak Alert).
+Phase 5 done. `apps/mobile` is a real Expo Router (SDK 51) app — `tsc --noEmit` passes
+clean. Cross-platform auth (Core Feature 1) required extending the Phase 3 API: added
+`createApiClient(request)` in `apps/web/lib/supabase/server.ts`, which reads an
+`Authorization: Bearer <token>` header first and falls back to the cookie session, so
+every `/api/*` route handler (updated across all 9 files) now serves web and mobile
+identically off the same Supabase project/session — no auth logic duplicated between
+platforms.
+
+- Bottom tabs (`(tabs)/_layout.tsx`): Home/Quests/Arena/Vault/Profile, matching the
+  design handoff's icon shapes/labels/active-color pixel-for-pixel.
+- `/home`, `/quests`, `/arena`, `/vault`, `/profile` — same live-data pattern as web
+  (direct Supabase reads under RLS for simple queries), `AttemptRunner` (RN twin of the
+  web component, identical `/api/attempts/*` contract) drives both `/drill` and
+  `/arena/[mockId]`.
+- Upload Panel: `/vault-upload` covers Upload PDF (`expo-document-picker`), Scan with
+  Camera (`expo-image-picker`, camera permission handled), and Write Self-Note, all
+  posting through `/api/notes`. `/arena-upload` covers custom mock CSV/JSON via
+  `expo-document-picker`, posting through `/api/mocks/upload` — same parsing/validation
+  as web, zero duplicated logic.
+- Push notifications (`lib/notifications.ts`): registers the device's Expo push token
+  into `push_tokens` on sign-in, schedules a **local** daily reminder at 21:00
+  device-local time (works even fully offline) via `expo-notifications`, and a new
+  Supabase Edge Function `supabase/functions/send-streak-reminders` provides the
+  **backend-triggered** path — queries `user_progress` for users who haven't completed
+  today's drill, joins their `push_tokens`, and calls the Expo push API directly
+  (meant to be scheduled ~21:00 UTC via the dashboard's Edge Function cron or
+  pg_cron + pg_net, since plain SQL can't reach an external HTTP API).
+
+Next: Phase 6 (sync & offline — Realtime subscriptions, `expo-sqlite` mutation queue,
+server-authoritative conflict resolution for streak/penalty state).

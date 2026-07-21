@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createRouteClient } from "@/lib/supabase/server";
+import { createApiClient } from "@/lib/supabase/server";
 
 const answerSchema = z.object({
   question_id: z.string().uuid(),
@@ -15,7 +15,7 @@ const answerSchema = z.object({
  * this endpoint never trusts or computes correctness.
  */
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-  const supabase = createRouteClient();
+  const supabase = createApiClient(request);
   const {
     data: { user },
   } = await supabase.auth.getUser();

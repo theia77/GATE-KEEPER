@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
-import { createRouteClient } from "@/lib/supabase/server";
+import { createApiClient } from "@/lib/supabase/server";
 import { DAILY_DRILL_QUESTION_COUNT } from "@gate-force/shared";
 
 /**
  * GET /api/drills/daily
  * Fetches (or lazily creates) today's mandatory 10-question Streak Armor drill for the
  * signed-in user. Idempotent per calendar day: if an attempt already exists for today
- * it's returned as-is rather than generating a fresh one.
+ * it's returned as-is rather than generating a fresh one. Called from both web (cookie
+ * session) and mobile (Authorization: Bearer <token>) — see lib/supabase/server.ts.
  */
-export async function GET() {
-  const supabase = createRouteClient();
+export async function GET(request: Request) {
+  const supabase = createApiClient(request);
   const {
     data: { user },
   } = await supabase.auth.getUser();

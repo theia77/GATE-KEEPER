@@ -21,6 +21,31 @@ export function createRouteClient() {
 }
 
 /**
+ * Request-scoped client for API routes that must work from BOTH web (cookie session,
+ * via @supabase/ssr) and mobile (no cookies — Expo sends `Authorization: Bearer
+ * <access_token>` instead). This is what makes cross-platform auth actually work: one
+ * Supabase project, one JWT, read either way. Falls back to the cookie-based client
+ * when there's no bearer token, so existing web route handlers behave identically.
+ */
+export function createApiClient(request: Request) {
+  const authHeader = request.headers.get("Authorization");
+  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  if (bearerToken) {
+    return createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: { headers: { Authorization: `Bearer ${bearerToken}` } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      }
+    );
+  }
+
+  return createRouteClient();
+}
+
+/**
  * Read-only variant for Server Components (layouts/pages). Next.js forbids writing
  * cookies outside Server Actions/Route Handlers, so `setAll` here is a no-op — session
  * refresh still happens in middleware and in the route handlers that do allow writes.

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createRouteClient, createServiceClient } from "@/lib/supabase/server";
+import { createApiClient, createServiceClient } from "@/lib/supabase/server";
 
 const SIGNED_URL_TTL_SECONDS = 600;
 
@@ -18,7 +18,7 @@ const requestSchema = z.object({
  * Uses the service-role client deliberately, after checking ownership/visibility itself.
  */
 export async function POST(request: Request) {
-  const supabase = createRouteClient();
+  const supabase = createApiClient(request);
   const {
     data: { user },
   } = await supabase.auth.getUser();

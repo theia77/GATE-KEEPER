@@ -7,7 +7,11 @@ that needs to run outside a single RLS-scoped query. Mobile (Phase 5) calls the 
 Next.js routes over HTTPS, plus Supabase directly for simple RLS-scoped reads/writes
 (e.g. reading `mocks`, `notes`) and Realtime subscriptions.
 
-All routes require a Supabase session (cookie on web, bearer token on mobile) unless noted.
+All routes require a Supabase session — a cookie on web, an `Authorization: Bearer
+<access_token>` header on mobile — unless noted. Every route reads the caller via
+`createApiClient(request)` (`apps/web/lib/supabase/server.ts`), which checks for the
+bearer header first and falls back to the cookie session, so the exact same handler
+code serves both platforms with no duplicated auth logic.
 
 ## Auth
 Handled by Supabase Auth directly from both clients (`supabase.auth.signUp` /
