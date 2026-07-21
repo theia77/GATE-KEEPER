@@ -9,7 +9,10 @@ type Question = {
   prompt: string;
   options: { key: string; text: string }[];
   marks: number;
+  question_type?: "mcq" | "msq" | "nat";
 };
+
+const looksLikeCode = (text: string) => /\n|[{};]|def |class |=>|#include|print\(/.test(text);
 
 type SubmitResult = {
   percentage: number;
@@ -25,16 +28,27 @@ export function AttemptRunner({ attemptId, questions }: { attemptId: string; que
   const [result, setResult] = useState<SubmitResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const selectOption = (questionId: string, optionKey: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: optionKey }));
+  const saveAnswer = (questionId: string, value: string) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
     fetch(`/api/attempts/${attemptId}/answer`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question_id: questionId, selected_option: optionKey }),
+      body: JSON.stringify({ question_id: questionId, selected_option: value }),
     }).catch(() => {
       /* offline queueing lands in Phase 6; a failed autosave here is retried on submit */
     });
   };
+
+  const selectOption = (questionId: string, optionKey: string) => saveAnswer(questionId, optionKey);
+
+  const toggleMsqOption = (questionId: string, optionKey: string) => {
+    const current = new Set(answers[questionId] ? answers[questionId].split(",") : []);
+    if (current.has(optionKey)) current.delete(optionKey);
+    else current.add(optionKey);
+    saveAnswer(questionId, Array.from(current).sort().join(","));
+  };
+
+  const setNatAnswer = (questionId: string, value: string) => saveAnswer(questionId, value);
 
   const submit = async () => {
     setSubmitting(true);
@@ -67,31 +81,61 @@ export function AttemptRunner({ attemptId, questions }: { attemptId: string; que
 
   return (
     <div className="flex flex-col gap-4">
-      {questions.map((q, i) => (
-        <Card key={q.id} className="flex flex-col gap-3">
-          <div className="text-sm text-ink leading-relaxed">
-            <span className="text-inkFaint mr-2">Q{i + 1}.</span>
-            {q.prompt}
-          </div>
-          <div className="flex flex-col gap-2">
-            {q.options.map((opt) => {
-              const selected = answers[q.id] === opt.key;
-              return (
-                <button
-                  key={opt.key}
-                  onClick={() => selectOption(q.id, opt.key)}
-                  className={`text-left text-sm rounded-xl px-3.5 py-2.5 border transition ${
-                    selected ? "border-accent bg-accent/10 text-ink" : "border-hairline text-inkMuted hover:border-white/20"
-                  }`}
-                >
-                  <span className="font-display font-bold mr-2">{opt.key}</span>
-                  {opt.text}
-                </button>
-              );
-            })}
-          </div>
-        </Card>
-      ))}
+      {questions.map((q, i) => {
+        const questionType = q.question_type ?? "mcq";
+        const isCode = looksLikeCode(q.prompt);
+        const selectedKeys = new Set(questionType === "msq" && answers[q.id] ? answers[q.id].split(",") : []);
+        return (
+          <Card key={q.id} className="flex flex-col gap-3">
+            <div className="text-sm text-ink leading-relaxed">
+              <span className="text-inkFaint mr-2">
+                Q{i + 1}.
+                {questionType === "msq" && <span className="ml-1.5 text-[10px] font-display font-bold text-accent align-middle">MSQ</span>}
+                {questionType === "nat" && <span className="ml-1.5 text-[10px] font-display font-bold text-accent align-middle">NAT</span>}
+              </span>
+              {isCode ? (
+                <pre className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-black/30 border border-hairline px-3 py-2.5 font-mono text-[13px] leading-relaxed text-ink overflow-x-auto">
+                  {q.prompt}
+                </pre>
+              ) : (
+                q.prompt
+              )}
+            </div>
+
+            {questionType === "nat" ? (
+              <input
+                type="text"
+                inputMode="decimal"
+                value={answers[q.id] ?? ""}
+                onChange={(e) => setNatAnswer(q.id, e.target.value)}
+                placeholder="Enter numeric answer"
+                className="text-sm rounded-xl px-3.5 py-2.5 border border-hairline bg-transparent text-ink focus:border-accent outline-none"
+              />
+            ) : (
+              <div className="flex flex-col gap-2">
+                {q.options.map((opt) => {
+                  const selected = questionType === "msq" ? selectedKeys.has(opt.key) : answers[q.id] === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      onClick={() => (questionType === "msq" ? toggleMsqOption(q.id, opt.key) : selectOption(q.id, opt.key))}
+                      className={`text-left text-sm rounded-xl px-3.5 py-2.5 border transition flex items-center gap-2 ${
+                        selected ? "border-accent bg-accent/10 text-ink" : "border-hairline text-inkMuted hover:border-white/20"
+                      }`}
+                    >
+                      {questionType === "msq" && (
+                        <span className={`inline-block w-3.5 h-3.5 rounded border shrink-0 ${selected ? "border-accent bg-accent" : "border-hairline"}`} />
+                      )}
+                      <span className="font-display font-bold mr-2">{opt.key}</span>
+                      {opt.text}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        );
+      })}
 
       {error && <div className="text-sm text-danger">{error}</div>}
 

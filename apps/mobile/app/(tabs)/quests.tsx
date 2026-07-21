@@ -1,12 +1,12 @@
 import { useCallback, useState } from "react";
-import { View, Text, ScrollView, StyleSheet } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Card, ProgressBar } from "@/components/ui";
 import { colors, fonts } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthProvider";
 
-type Subject = { id: string; name: string };
+type Subject = { id: string; code: string; name: string };
 
 function masteryColor(pct: number) {
   if (pct >= 70) return colors.success;
@@ -16,6 +16,7 @@ function masteryColor(pct: number) {
 
 export default function QuestsScreen() {
   const { session } = useAuth();
+  const router = useRouter();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [mastery, setMastery] = useState<Record<string, { correct: number; total: number }>>({});
 
@@ -24,7 +25,7 @@ export default function QuestsScreen() {
       if (!session) return;
       supabase
         .from("subjects")
-        .select("id, name")
+        .select("id, code, name")
         .order("sort_order")
         .then(({ data }) => setSubjects(data ?? []));
 
@@ -58,14 +59,16 @@ export default function QuestsScreen() {
         const pct = stats && stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
         const color = masteryColor(pct);
         return (
-          <Card key={subject.id} style={{ gap: 10 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={styles.subjectName}>{subject.name}</Text>
-              <Text style={[styles.masteryPct, { color }]}>{pct}%</Text>
-            </View>
-            <ProgressBar percent={pct} color={color} />
-            <Text style={styles.mutedSmall}>{stats?.total ?? 0} questions attempted</Text>
-          </Card>
+          <Pressable key={subject.id} onPress={() => router.push({ pathname: "/topics/[code]", params: { code: subject.code } })}>
+            <Card style={{ gap: 10 }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={styles.subjectName}>{subject.name}</Text>
+                <Text style={[styles.masteryPct, { color }]}>{pct}%</Text>
+              </View>
+              <ProgressBar percent={pct} color={color} />
+              <Text style={styles.mutedSmall}>{stats?.total ?? 0} questions attempted · tap to browse chapters</Text>
+            </Card>
+          </Pressable>
         );
       })}
     </ScrollView>

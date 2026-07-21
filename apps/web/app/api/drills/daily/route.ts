@@ -31,7 +31,7 @@ export async function GET(request: Request) {
   if (existingLog?.attempt_id) {
     const { data: attempt } = await supabase
       .from("attempts")
-      .select("id, status, attempt_answers(question_id, selected_option, questions(id, subject_id, prompt, options, marks))")
+      .select("id, status, attempt_answers(question_id, selected_option, questions(id, subject_id, prompt, options, marks, question_type))")
       .eq("id", existingLog.attempt_id)
       .single();
     return NextResponse.json({ attempt, alreadyCompleted: existingLog.completed });
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
 
   const { data: todaysInProgress } = await supabase
     .from("attempts")
-    .select("id, attempt_answers(question_id, selected_option, questions(id, subject_id, prompt, options, marks))")
+    .select("id, attempt_answers(question_id, selected_option, questions(id, subject_id, prompt, options, marks, question_type))")
     .eq("user_id", user.id)
     .eq("attempt_type", "daily_drill")
     .eq("status", "in_progress")
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
 
   const { data: questions, error: qError } = await supabase
     .from("questions")
-    .select("id, subject_id, prompt, options, marks")
+    .select("id, subject_id, prompt, options, marks, question_type")
     .eq("is_active", true)
     .order("id") // deterministic base order; randomized below client-side is unnecessary — see limit
     .limit(200);

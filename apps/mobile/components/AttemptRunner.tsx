@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, TextInput, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { Card, PrimaryButton } from "@/components/ui";
 import { colors, fonts } from "@/lib/theme";
@@ -7,8 +7,16 @@ import { apiFetch, apiFetchJson } from "@/lib/api";
 import { enqueueMutation } from "@/lib/db";
 import { flushQueue } from "@/lib/offlineQueue";
 
-type Question = { id: string; prompt: string; options: { key: string; text: string }[]; marks: number };
+type Question = {
+  id: string;
+  prompt: string;
+  options: { key: string; text: string }[];
+  marks: number;
+  question_type?: "mcq" | "msq" | "nat";
+};
 type SubmitResult = { percentage: number; xp_awarded: number; penalty_triggered: boolean; penalty_cleared: boolean };
+
+const looksLikeCode = (text: string) => /\n|[{};]|def |class |=>|#include|print\(/.test(text);
 
 /**
  * Mirrors apps/web/components/AttemptRunner.tsx — same API contract, RN presentation,
@@ -24,13 +32,24 @@ export function AttemptRunner({ attemptId, questions }: { attemptId: string; que
   const [queued, setQueued] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const selectOption = (questionId: string, optionKey: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: optionKey }));
-    const payload = { question_id: questionId, selected_option: optionKey };
+  const saveAnswer = (questionId: string, value: string) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    const payload = { question_id: questionId, selected_option: value };
     apiFetchJson(`/api/attempts/${attemptId}/answer`, "PATCH", payload).catch(() => {
       enqueueMutation("answer", attemptId, payload);
     });
   };
+
+  const selectOption = (questionId: string, optionKey: string) => saveAnswer(questionId, optionKey);
+
+  const toggleMsqOption = (questionId: string, optionKey: string) => {
+    const current = new Set(answers[questionId] ? answers[questionId].split(",") : []);
+    if (current.has(optionKey)) current.delete(optionKey);
+    else current.add(optionKey);
+    saveAnswer(questionId, Array.from(current).sort().join(","));
+  };
+
+  const setNatAnswer = (questionId: string, value: string) => saveAnswer(questionId, value);
 
   const submit = async () => {
     setSubmitting(true);
@@ -78,31 +97,53 @@ export function AttemptRunner({ attemptId, questions }: { attemptId: string; que
 
   return (
     <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 40 }}>
-      {questions.map((q, i) => (
-        <Card key={q.id} style={{ gap: 10 }}>
-          <Text style={styles.prompt}>
-            <Text style={styles.promptIndex}>Q{i + 1}. </Text>
-            {q.prompt}
-          </Text>
-          <View style={{ gap: 8 }}>
-            {q.options.map((opt) => {
-              const selected = answers[q.id] === opt.key;
-              return (
-                <Pressable
-                  key={opt.key}
-                  onPress={() => selectOption(q.id, opt.key)}
-                  style={[styles.option, selected && styles.optionSelected]}
-                >
-                  <Text style={[styles.optionText, selected && { color: colors.textPrimary }]}>
-                    <Text style={styles.optionKey}>{opt.key}  </Text>
-                    {opt.text}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </Card>
-      ))}
+      {questions.map((q, i) => {
+        const questionType = q.question_type ?? "mcq";
+        const isCode = looksLikeCode(q.prompt);
+        const selectedKeys = new Set(questionType === "msq" && answers[q.id] ? answers[q.id].split(",") : []);
+        return (
+          <Card key={q.id} style={{ gap: 10 }}>
+            <Text style={styles.prompt}>
+              <Text style={styles.promptIndex}>
+                Q{i + 1}.{questionType !== "mcq" && `  ${questionType.toUpperCase()}`}{"  "}
+              </Text>
+              {!isCode && q.prompt}
+            </Text>
+            {isCode && (
+              <Text style={styles.code}>{q.prompt}</Text>
+            )}
+
+            {questionType === "nat" ? (
+              <TextInput
+                value={answers[q.id] ?? ""}
+                onChangeText={(text) => setNatAnswer(q.id, text)}
+                placeholder="Enter numeric answer"
+                placeholderTextColor={colors.textFaint}
+                keyboardType="numbers-and-punctuation"
+                style={styles.natInput}
+              />
+            ) : (
+              <View style={{ gap: 8 }}>
+                {q.options.map((opt) => {
+                  const selected = questionType === "msq" ? selectedKeys.has(opt.key) : answers[q.id] === opt.key;
+                  return (
+                    <Pressable
+                      key={opt.key}
+                      onPress={() => (questionType === "msq" ? toggleMsqOption(q.id, opt.key) : selectOption(q.id, opt.key))}
+                      style={[styles.option, selected && styles.optionSelected]}
+                    >
+                      <Text style={[styles.optionText, selected && { color: colors.textPrimary }]}>
+                        <Text style={styles.optionKey}>{opt.key}  </Text>
+                        {opt.text}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </Card>
+        );
+      })}
 
       {error && <Text style={{ color: colors.danger, fontSize: 13 }}>{error}</Text>}
 
@@ -116,6 +157,26 @@ export function AttemptRunner({ attemptId, questions }: { attemptId: string; que
 const styles = StyleSheet.create({
   prompt: { fontSize: 14, color: colors.textPrimary, lineHeight: 20 },
   promptIndex: { color: colors.textFaint },
+  code: {
+    fontFamily: "monospace",
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: colors.textPrimary,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
+  },
+  natInput: {
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    color: colors.textPrimary,
+    fontSize: 14,
+  },
   option: { borderColor: colors.border, borderWidth: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14 },
   optionSelected: { borderColor: colors.accentOrange, backgroundColor: "rgba(255,91,46,0.1)" },
   optionText: { fontSize: 14, color: colors.textSecondary },
