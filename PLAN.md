@@ -27,7 +27,7 @@ success `#7cd992`, headings in Barlow Condensed 700/800, body in Inter).
 - [x] **Phase 0** — Repo scaffold, PLAN.md, workspace config.
 - [x] **Phase 1** — Architecture & Data Layer: full SQL schema (migrations), RLS policies, shared TS types.
 - [x] **Phase 2** — Rigorous Logic: Streak Armor trigger/function, Penalty Drill lock trigger, XP/Rank function — all in Postgres, server-authoritative.
-- [ ] **Phase 3** — Backend/API: Supabase RPC + Next.js route handlers for drills, mocks, uploads, notes/voting; Storage bucket layout + signed URL strategy.
+- [x] **Phase 3** — Backend/API: Supabase RPC + Next.js route handlers for drills, mocks, uploads, notes/voting; Storage bucket layout + signed URL strategy.
 - [ ] **Phase 4** — Web App (Next.js): sidebar layout, Home/Quests/Arena/Vault/Profile pages, hardcore-academy visual system via `frontend-design` skill.
 - [ ] **Phase 5** — Mobile App (Expo): bottom-tab nav (Home/Quests/Arena/Vault/Profile) matching handoff design pixel-for-pixel, Upload Panel (document/image picker), push notifications for Streak Alert.
 - [ ] **Phase 6** — Sync & Offline: Realtime subscriptions, SQLite mutation queue, server-authoritative conflict resolution for streak/penalty state.
@@ -85,5 +85,29 @@ Phase 2 done. 4 more migrations, all real logic, no TODOs:
   then routes into the three systems above by `attempt_type`. Granted to `authenticated`;
   everything it calls internally stays `service_role`-only.
 
-Next: Phase 3 (Supabase RPC / Next.js route handlers for drills, mocks, custom-mock
-upload parsing, notes/voting, Storage bucket + signed URL strategy).
+Phase 3 done. `apps/web` is now a real (if UI-bare) Next.js 14 App Router project —
+`app/api/**` route handlers, `lib/supabase/{server,client}.ts` (session-scoped route
+client + a locked-down service-role client), `lib/parseCsv.ts` (dependency-free CSV
+parser for mock uploads). Full endpoint list + Storage strategy: `docs/api-routes.md`.
+
+Highlights:
+- `GET /api/drills/daily` — idempotent per calendar day, generates the 10-question
+  Streak Armor drill if one doesn't exist yet today.
+- `POST /api/attempts`, `PATCH /api/attempts/:id/answer`, `POST /api/attempts/:id/submit`
+  — attempt lifecycle; submit is a thin wrapper over the Phase 2 `submit_attempt` RPC,
+  no grading/XP/streak/penalty logic duplicated here. Starting an attempt relies on the
+  Phase 2 `attempts_enforce_penalty_lock` trigger to 403 a locked user server-side.
+- `POST /api/mocks/upload` — parses CSV or JSON, validates with the shared Zod schema,
+  resolves `subject_code` → `subjects.id`, inserts `questions`/`mocks`/`mock_questions`/
+  `user_uploaded_mocks`, archives the original file to Storage.
+- `POST /api/notes` — self-note text or PDF/scanned-image file, matches the design's
+  Upload Panel options (Upload PDF / Scan with Camera / Write Self-Note).
+- New migration `20260103000001_storage_buckets.sql`: two **private** buckets
+  (`mock-uploads`, `note-files`), path convention `{owner_id}/{entity_id}/{filename}`,
+  storage RLS restricted to each user's own folder. Reads (including public notes,
+  which must be downloadable by everyone) go through `POST /api/uploads/signed-url`,
+  which does the visibility check a static storage policy can't express and issues a
+  10-minute signed URL — there is no public bucket anywhere in this app.
+
+Next: Phase 4 (Next.js web UI — sidebar layout, Home/Quests/Arena/Vault/Profile pages,
+hardcore-academy visual system via the `frontend-design` skill).
