@@ -26,7 +26,7 @@ success `#7cd992`, headings in Barlow Condensed 700/800, body in Inter).
 ## Phases
 - [x] **Phase 0** — Repo scaffold, PLAN.md, workspace config.
 - [x] **Phase 1** — Architecture & Data Layer: full SQL schema (migrations), RLS policies, shared TS types.
-- [ ] **Phase 2** — Rigorous Logic: Streak Armor trigger/function, Penalty Drill lock trigger, XP/Rank function — all in Postgres, server-authoritative.
+- [x] **Phase 2** — Rigorous Logic: Streak Armor trigger/function, Penalty Drill lock trigger, XP/Rank function — all in Postgres, server-authoritative.
 - [ ] **Phase 3** — Backend/API: Supabase RPC + Next.js route handlers for drills, mocks, uploads, notes/voting; Storage bucket layout + signed URL strategy.
 - [ ] **Phase 4** — Web App (Next.js): sidebar layout, Home/Quests/Arena/Vault/Profile pages, hardcore-academy visual system via `frontend-design` skill.
 - [ ] **Phase 5** — Mobile App (Expo): bottom-tab nav (Home/Quests/Arena/Vault/Profile) matching handoff design pixel-for-pixel, Upload Panel (document/image picker), push notifications for Streak Alert.
@@ -64,5 +64,26 @@ edit their own XP/streak/lock by hand).
 rank/design-token constants (`constants.ts`, sourced from the design handoff), a
 Supabase client factory, and Zod schemas for custom-mock CSV/JSON upload validation.
 
-Nothing stubbed — schema and RLS are real and migration-runnable. Next: Phase 2
-(Streak Armor trigger, Penalty Drill lock trigger, XP/Rank function).
+Nothing stubbed — schema and RLS are real and migration-runnable.
+
+Phase 2 done. 4 more migrations, all real logic, no TODOs:
+- `xp_rank`: `award_xp()` — the only path that ever changes `xp_total`/`rank_name`;
+  writes an `xp_transactions` row then recomputes rank from `rank_thresholds`.
+  `service_role`-only — never exposed to clients directly.
+- `streak_armor`: `record_daily_drill_completion()` (increments/resets `current_streak`
+  based on `last_drill_date` gap, tracks `best_streak`, awards a +100 XP bonus every 7
+  days) plus `reset_missed_streaks()`, scheduled via `pg_cron` at 04:00 UTC (the grace
+  period) to authoritatively zero streaks for users who never reopen the app.
+- `penalty_drills`: `trigger_penalty_lock()` auto-assembles a Weakness Drill mock from
+  the attempt's 3 worst-scoring subjects and locks `user_progress`; `clear_penalty_drill()`
+  unlocks at a >=60% clearing score and pays a 150 XP bonus. `enforce_penalty_lock()` is
+  a `BEFORE INSERT` trigger on `attempts` that hard-blocks a locked user from starting any
+  attempt type except their own daily drill or their exact assigned weakness-drill mock —
+  server-side, not just RLS/UI, so it can't be bypassed by hitting the API directly.
+- `submit_attempt`: the single RPC clients call to finish any attempt. Grades every
+  answer against `questions.correct_option` server-side (never trusts a client score),
+  then routes into the three systems above by `attempt_type`. Granted to `authenticated`;
+  everything it calls internally stays `service_role`-only.
+
+Next: Phase 3 (Supabase RPC / Next.js route handlers for drills, mocks, custom-mock
+upload parsing, notes/voting, Storage bucket + signed URL strategy).
