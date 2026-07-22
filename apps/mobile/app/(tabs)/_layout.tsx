@@ -2,7 +2,7 @@ import { Tabs } from "expo-router";
 import { View, Text, StyleSheet } from "react-native";
 import { colors, fonts } from "@/lib/theme";
 
-function TabIcon({ shape, focused }: { shape: "square" | "bars" | "triangle" | "vault" | "circle"; focused: boolean }) {
+function TabIcon({ shape, focused }: { shape: "square" | "bars" | "triangle" | "vault" | "circle" | "diamond"; focused: boolean }) {
   const c = focused ? colors.accentOrange : colors.textFaint;
   if (shape === "bars") {
     return (
@@ -34,6 +34,9 @@ function TabIcon({ shape, focused }: { shape: "square" | "bars" | "triangle" | "
   }
   if (shape === "circle") {
     return <View style={{ width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: c }} />;
+  }
+  if (shape === "diamond") {
+    return <View style={{ width: 12, height: 12, borderWidth: 2, borderColor: c, transform: [{ rotate: "45deg" }] }} />;
   }
   return <View style={{ width: 16, height: 16, borderRadius: 4, borderWidth: 2, borderColor: c }} />;
 }
@@ -69,6 +72,17 @@ export default function TabsLayout() {
             <View style={styles.tabItem}>
               <TabIcon shape="bars" focused={focused} />
               <TabLabel label="QUESTS" focused={focused} />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="practice"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.tabItem}>
+              <TabIcon shape="diamond" focused={focused} />
+              <TabLabel label="PRACTICE" focused={focused} />
             </View>
           ),
         }}

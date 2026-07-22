@@ -59,6 +59,10 @@ export default function SubjectTopicsScreen() {
         <Text style={styles.allButtonText}>{starting === "__all__" ? "STARTING…" : "PRACTICE ALL CHAPTERS →"}</Text>
       </Pressable>
 
+      <Pressable onPress={() => router.push({ pathname: "/learn/[code]", params: { code } })}>
+        <Text style={styles.learnLink}>📖 Read the lessons for this subject in the Learning Arena →</Text>
+      </Pressable>
+
       {state.topics.map((t) => {
         const color = masteryColor(t.accuracy_pct);
         return (
@@ -72,9 +76,14 @@ export default function SubjectTopicsScreen() {
               <Text style={styles.mutedSmall}>
                 {t.question_count} questions · {t.attempted_count} attempted
               </Text>
-              <Pressable onPress={() => startPractice(t.sub_topic)} disabled={starting !== null}>
-                <Text style={styles.practiceLink}>{starting === t.sub_topic ? "STARTING…" : "PRACTICE →"}</Text>
-              </Pressable>
+              <View style={{ flexDirection: "row", gap: 14 }}>
+                <Pressable onPress={() => router.push({ pathname: "/learn/[code]/[subtopic]", params: { code, subtopic: t.sub_topic } })}>
+                  <Text style={styles.learnLinkSmall}>LEARN</Text>
+                </Pressable>
+                <Pressable onPress={() => startPractice(t.sub_topic)} disabled={starting !== null}>
+                  <Text style={styles.practiceLink}>{starting === t.sub_topic ? "STARTING…" : "PRACTICE →"}</Text>
+                </Pressable>
+              </View>
             </View>
           </Card>
         );
@@ -96,4 +105,6 @@ const styles = StyleSheet.create({
   allButton: { borderColor: colors.accentOrange, borderWidth: 1, backgroundColor: "rgba(255,91,46,0.1)", borderRadius: 14, paddingVertical: 12, paddingHorizontal: 16 },
   allButtonText: { fontFamily: fonts.displayExtraBold, fontSize: 13, color: colors.textPrimary, textAlign: "center" },
   practiceLink: { fontFamily: fonts.display, fontWeight: "700", fontSize: 12, color: colors.accentOrange },
+  learnLink: { fontSize: 12.5, color: colors.textMuted, textAlign: "center" },
+  learnLinkSmall: { fontFamily: fonts.display, fontWeight: "700", fontSize: 11, color: colors.textMuted },
 });
