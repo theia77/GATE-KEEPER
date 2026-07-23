@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { Card, ProgressBar } from "@/components/ui";
@@ -77,6 +78,10 @@ export default function SubjectTopicsPage() {
         {starting === "__all__" ? "STARTING…" : "PRACTICE ALL CHAPTERS →"}
       </button>
 
+      <Link href={`/learn/${code}`} className="text-xs text-inkFaint hover:text-ink">
+        📖 Read the lessons for this subject in the Learning Arena →
+      </Link>
+
       <div className="flex flex-col gap-2.5">
         {state.topics.map((t) => {
           const color = masteryColor(t.accuracy_pct);
@@ -93,13 +98,14 @@ export default function SubjectTopicsPage() {
                 <div className="text-xs text-inkFaint">
                   {t.question_count} questions · {t.attempted_count} attempted
                 </div>
-                <button
-                  onClick={() => startPractice(t.sub_topic)}
-                  disabled={starting !== null}
-                  className="font-display font-bold text-xs text-accent shrink-0"
-                >
-                  {starting === t.sub_topic ? "STARTING…" : "PRACTICE →"}
-                </button>
+                <div className="flex items-center gap-3 shrink-0">
+                  <Link href={`/learn/${code}/${t.sub_topic}`} className="font-display font-bold text-xs text-inkFaint hover:text-ink">
+                    LEARN
+                  </Link>
+                  <button onClick={() => startPractice(t.sub_topic)} disabled={starting !== null} className="font-display font-bold text-xs text-accent">
+                    {starting === t.sub_topic ? "STARTING…" : "PRACTICE →"}
+                  </button>
+                </div>
               </div>
             </Card>
           );
