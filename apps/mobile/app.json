@@ -2,6 +2,7 @@
   "expo": {
     "name": "GATE FORCE",
     "slug": "gate-force",
+    "owner": "mochi23s-team",
     "scheme": "gateforce",
     "version": "0.1.0",
     "orientation": "portrait",

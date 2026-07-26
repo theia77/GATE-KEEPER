@@ -1,0 +1,37 @@
+name: EAS project diagnostics (manual)
+
+# One-off, manually-triggered helper: links/creates the EAS project for apps/mobile and
+# prints the resulting app.json so the real projectId can be copied into a proper commit.
+# Run from the Actions tab ("Run workflow") with an EXPO_TOKEN repo secret set. Changes
+# happen only in this ephemeral runner's checkout — nothing is committed or pushed back.
+on:
+  workflow_dispatch:
+
+jobs:
+  eas-info:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Show current app.json eas config
+        run: cat app.json
+
+      - name: Whoami
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx eas-cli@latest whoami
+
+      - name: Attempt non-interactive init (does not modify anything unexpected — just reports)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx eas-cli@latest init --non-interactive || true
+
+      - name: Show resulting app.json (if init linked/created a project)
+        run: cat app.json
