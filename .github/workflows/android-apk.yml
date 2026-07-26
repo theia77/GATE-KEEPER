@@ -32,7 +32,9 @@ jobs:
 
       - name: Expo prebuild (generate native android/ project)
         working-directory: apps/mobile
-        run: npx expo prebuild --platform android --non-interactive
+        env:
+          CI: "1"
+        run: npx expo prebuild --platform android
 
       - name: Assemble debug APK
         working-directory: apps/mobile/android
