@@ -1,17 +1,33 @@
 name: Build Android APK (no EAS)
 
-# Builds a debug APK entirely inside GitHub Actions using Expo's prebuild + Gradle
+# Builds a release APK entirely inside GitHub Actions using Expo's prebuild + Gradle
 # directly — bypasses EAS Build entirely, so it needs no Expo account, no EAS project
-# link, and no token. Trade-off: this is a debug build (auto-signed with Gradle's
-# throwaway debug keystore), fine for installing on a phone to test, not for the
-# Play Store — that path still goes through EAS (see eas-init.yml) or a release
-# signing setup added later.
+# link, and no token. A *release* build (not debug) is required here: debug builds
+# don't embed the JS bundle, they fetch it live from a Metro dev server, which doesn't
+# exist off this runner — installing one standalone just shows a red "Unable to load
+# script" screen. Release builds bundle the JS in at build time, so they run standalone.
+# Still auto-signed with Gradle's throwaway debug keystore (RN template default), so
+# it's fine for installing on a phone to test, not for the Play Store — that path still
+# goes through EAS (see eas-init.yml) or a real release signing setup added later.
 on:
   workflow_dispatch:
 
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+    env:
+      # Public/publishable values only — safe to bake into a client build, same ones
+      # the deployed web app uses. Never put the Supabase service_role key here.
+      EXPO_PUBLIC_SUPABASE_URL: "https://zfbldpqmzcsrvkjhuqsh.supabase.co"
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmYmxkcHFtemNzcnZramh1cXNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MjU2OTksImV4cCI6MjEwMDIwMTY5OX0.WJVSsMOlLmZilF0vDEKWTa7WgIOQggJmkztg4eL9mTQ"
+      EXPO_PUBLIC_API_URL: "https://gate-keeper-web-rgyz.vercel.app"
+      # Hoisted node_modules only for this job's install — react-native's settings.gradle
+      # resolves its own package location via Node module resolution, which breaks under
+      # pnpm's default symlinked layout. This is scoped to CI only (not a committed
+      # .npmrc) because hoisting repo-wide breaks the Next.js web build: Next vendors its
+      # own nested React copy, and hoisting causes two React instances to load at once,
+      # producing "Cannot read properties of null (reading 'useRef')" during prerender.
+      npm_config_node_linker: hoisted
     steps:
       - uses: actions/checkout@v4
 
@@ -36,14 +52,14 @@ jobs:
           CI: "1"
         run: npx expo prebuild --platform android
 
-      - name: Assemble debug APK
+      - name: Assemble release APK
         working-directory: apps/mobile/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: gate-force-debug-apk
-          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          name: gate-force-release-apk
+          path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
