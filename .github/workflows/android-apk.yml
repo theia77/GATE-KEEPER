@@ -21,6 +21,13 @@ jobs:
       EXPO_PUBLIC_SUPABASE_URL: "https://zfbldpqmzcsrvkjhuqsh.supabase.co"
       EXPO_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmYmxkcHFtemNzcnZramh1cXNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MjU2OTksImV4cCI6MjEwMDIwMTY5OX0.WJVSsMOlLmZilF0vDEKWTa7WgIOQggJmkztg4eL9mTQ"
       EXPO_PUBLIC_API_URL: "https://gate-keeper-web-rgyz.vercel.app"
+      # Hoisted node_modules only for this job's install — react-native's settings.gradle
+      # resolves its own package location via Node module resolution, which breaks under
+      # pnpm's default symlinked layout. This is scoped to CI only (not a committed
+      # .npmrc) because hoisting repo-wide breaks the Next.js web build: Next vendors its
+      # own nested React copy, and hoisting causes two React instances to load at once,
+      # producing "Cannot read properties of null (reading 'useRef')" during prerender.
+      npm_config_node_linker: hoisted
     steps:
       - uses: actions/checkout@v4
 
