@@ -9,25 +9,47 @@ export function LoginForm() {
   const supabase = createBrowserSupabaseClient();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
+    setNotice(null);
     const form = new FormData(e.currentTarget);
     const email = String(form.get("email"));
     const password = String(form.get("password"));
     const username = String(form.get("username") ?? "");
 
-    const { error: authError } =
-      mode === "signin"
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password, options: { data: { username } } });
+    if (mode === "signin") {
+      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      setSubmitting(false);
+      if (authError) {
+        setError(authError.message);
+        return;
+      }
+      router.push("/home");
+      router.refresh();
+      return;
+    }
 
+    const { data, error: authError } = await supabase.auth.signUp({ email, password, options: { data: { username } } });
     setSubmitting(false);
     if (authError) {
       setError(authError.message);
+      return;
+    }
+    // Supabase silently no-ops (no error, no session) when the email is already registered —
+    // this is intentional anti-enumeration behavior, surfaced here via the empty identities array.
+    if (data.user && data.user.identities && data.user.identities.length === 0) {
+      setError("That email is already registered — sign in instead.");
+      setMode("signin");
+      return;
+    }
+    if (!data.session) {
+      setNotice("Check your email to confirm your account, then sign in.");
+      setMode("signin");
       return;
     }
     router.push("/home");
@@ -69,6 +91,7 @@ export function LoginForm() {
         />
 
         {error && <div className="text-sm text-danger">{error}</div>}
+        {notice && <div className="text-sm text-success">{notice}</div>}
 
         <button
           type="submit"

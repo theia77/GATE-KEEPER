@@ -10,17 +10,38 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
     setSubmitting(true);
     setError(null);
-    const { error: authError } =
-      mode === "signin"
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password, options: { data: { username } } });
+    setNotice(null);
+
+    if (mode === "signin") {
+      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      setSubmitting(false);
+      if (authError) setError(authError.message);
+      return;
+    }
+
+    const { data, error: authError } = await supabase.auth.signUp({ email, password, options: { data: { username } } });
     setSubmitting(false);
-    if (authError) setError(authError.message);
+    if (authError) {
+      setError(authError.message);
+      return;
+    }
+    // Supabase silently no-ops (no error, no session) when the email is already registered —
+    // this is intentional anti-enumeration behavior, surfaced here via the empty identities array.
+    if (data.user && data.user.identities && data.user.identities.length === 0) {
+      setError("That email is already registered — sign in instead.");
+      setMode("signin");
+      return;
+    }
+    if (!data.session) {
+      setNotice("Check your email to confirm your account, then sign in.");
+      setMode("signin");
+    }
   };
 
   return (
@@ -35,6 +56,7 @@ export default function LoginScreen() {
       <TextInput style={styles.input} placeholder="Password" placeholderTextColor={colors.textFaint} value={password} onChangeText={setPassword} secureTextEntry />
 
       {error && <Text style={styles.error}>{error}</Text>}
+      {notice && <Text style={styles.notice}>{notice}</Text>}
 
       <PrimaryButton onPress={submit} disabled={submitting} style={{ marginTop: 8 }}>
         <Text style={styles.buttonText}>{submitting ? "…" : mode === "signin" ? "ENTER THE FORCE" : "ENLIST"}</Text>
@@ -53,6 +75,7 @@ const styles = StyleSheet.create({
   subtitle: { fontFamily: fonts.display, fontSize: 12, letterSpacing: 2, color: colors.textFaint, textAlign: "center", marginBottom: 16 },
   input: { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, color: colors.textPrimary },
   error: { color: colors.danger, fontSize: 13 },
+  notice: { color: colors.success, fontSize: 13 },
   buttonText: { fontFamily: fonts.displayExtraBold, color: colors.accentInk, textAlign: "center", fontSize: 15 },
   switchMode: { color: colors.textFaint, fontSize: 12, textAlign: "center", marginTop: 8 },
 });
